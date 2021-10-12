@@ -14,12 +14,12 @@
  * version in the future.
  *
  * @category   Landofcoder
- * @package    Lofmp_AttributeSets
+ * @package    Lofmp_CancelOrder
  * @copyright  Copyright (c) 2021 Landofcoder (https://landofcoder.com/)
  * @license    https://landofcoder.com/LICENSE-1.0.html
  */
 \Magento\Framework\Component\ComponentRegistrar::register(
     \Magento\Framework\Component\ComponentRegistrar::MODULE,
-    'Lofmp_AttributeSets',
+    'Lofmp_CancelOrder',
     __DIR__
 );
