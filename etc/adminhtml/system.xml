@@ -38,11 +38,11 @@
 					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <comment>Send notification email to customer when admin or seller cancel order.</comment>
 				</field>
-                <field id="notify_seller" translate="label comment" type="select" sortOrder="25" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
-					<label>Enabled send notification email to customer</label>
+                <!-- <field id="notify_seller" translate="label comment" type="select" sortOrder="25" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
+					<label>Enabled send notification email to seller</label>
 					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <comment>Send notification email to seller when admin cancel order.</comment>
-				</field>
+				</field> -->
                 <field id="notify_admin" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1" canRestore="1">
 					<label>Enabled send notification email to admin</label>
 					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
