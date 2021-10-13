@@ -1,4 +1,4 @@
-<!--@subject Order {{trans "#%increment_id" increment_id=$order.increment_id |raw}} was cancelled By {{var cancel_by_name}}  @-->
+<!--@subject Order {{trans "#%increment_id" increment_id=$order.increment_id |raw}} was cancelled by {{var cancel_by_name}}  @-->
 <!--@vars {
 "var this.getUrl($store, 'admin')":"Warehouse Account URL",
 "var $order": "Order Information",
@@ -17,7 +17,7 @@
                 {{trans 'This is to inform you that the order was cancelled.'}}
             </p>
             <p>
-                {{tran "Order was cancelled by: "}} <strong>{{var cancel_by_name}}</strong>
+                {{trans "Order was cancelled by: "}} <strong>{{var cancel_by_name}}</strong>
             </p>
             <p>{{trans "Please review accordingly. Details are as below."}}</p>
         </td>
