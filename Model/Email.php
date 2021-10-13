@@ -24,7 +24,7 @@ namespace Lofmp\CancelOrder\Model;
 class Email extends \Magento\Framework\Model\AbstractModel
 {
     const XML_PATH_ENABLED = 'lofmp_cancelorder/general/enable';
-    const XML_PATH_EMAI_TEMPLATE = 'lofmp_cancelorder/general/email_template';
+    const XML_PATH_EMAIL_TEMPLATE = 'lofmp_cancelorder/general/email_template';
     const XML_PATH_ENABLE_SEND_ADMIN_NOTIFY = 'lofmp_cancelorder/general/notify_admin';
     const XML_PATH_ENABLE_SEND_CUSTOMER_NOTIFY = 'lofmp_cancelorder/general/notify_customer';
     const XML_PATH_ENABLE_SEND_SELLER_NOTIFY = 'lofmp_cancelorder/general/notify_seller';
@@ -83,6 +83,21 @@ class Email extends \Magento\Framework\Model\AbstractModel
      * @var \Magento\Customer\Helper\View
      */
     protected $_customerHelper;
+
+    /**
+     * @var mixed|array
+     */
+    protected $_data = [];
+
+    /**
+     * @var string|null
+     */
+    protected $_receiver_name = null;
+
+    /**
+     * @var string|null
+     */
+    protected $_receiver_email = null;
 
     /**
      * Email constructor.
@@ -175,6 +190,42 @@ class Email extends \Magento\Framework\Model\AbstractModel
     }
 
     /**
+     * Set email data
+     *
+     * @param mixed|array $data
+     * @return $this
+     */
+    public function setEmailData($data)
+    {
+        $this->_data = $data;
+        return $this;
+    }
+
+    /**
+     * Set email
+     *
+     * @param string $email
+     * @return $this
+     */
+    public function setReciverEmail($email)
+    {
+        $this->_receiver_email = $email;
+        return $this;
+    }
+
+    /**
+     * Set name
+     *
+     * @param string $name
+     * @return $this
+     */
+    public function setReciverName($name)
+    {
+        $this->_receiver_name = $name;
+        return $this;
+    }
+
+    /**
      * Clean data
      *
      * @return $this
@@ -182,18 +233,22 @@ class Email extends \Magento\Framework\Model\AbstractModel
     public function clean()
     {
         $this->_customer = null;
+        $this->_receiver_email = null;
+        $this->_receiver_name = null;
+        $this->_data = [];
         return $this;
     }
 
     /**
      * Send customer email
      *
+     * @param bool $is_send_admin
      * @return bool
      * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      * @SuppressWarnings(PHPMD.NPathComplexity)
      * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
      */
-    public function send()
+    public function send($is_send_admin = false)
     {
         if ($this->_website === null) {
             return false;
@@ -212,26 +267,30 @@ class Email extends \Magento\Framework\Model\AbstractModel
             return false;
         }
 
-        $this->_appEmulation->startEnvironmentEmulation($storeId);
-        $this->_getStockBlock()->setStore($store)->reset();
+        if ($is_send_admin) {
+            $admin_email = $this->_scopeConfig->getValue(
+                self::XML_PATH_ADMIN_EMAIL,
+                \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+                $storeId
+            );
+            $this->setReciverEmail($admin_email);
+        }
+
+        if (!$this->_data || !$this->_receiver_email) {
+            return false;
+        }
 
         $templateId = $this->_scopeConfig->getValue(
             self::XML_PATH_EMAIL_TEMPLATE,
             \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
             $storeId
         );
-
-        $this->_appEmulation->stopEnvironmentEmulation();
-
         $transport = $this->_transportBuilder->setTemplateIdentifier(
             $templateId
         )->setTemplateOptions(
             ['area' => \Magento\Framework\App\Area::AREA_FRONTEND, 'store' => $storeId]
         )->setTemplateVars(
-            [
-                'customerName' => $this->getSubscriberName(),
-                'alertGrid' => $alertGrid,
-            ]
+            $this->_data
         )->setFrom(
             $this->_scopeConfig->getValue(
                 self::XML_PATH_EMAIL_IDENTITY,
@@ -239,97 +298,12 @@ class Email extends \Magento\Framework\Model\AbstractModel
                 $storeId
             )
         )->addTo(
-            $this->getSubscriberEmail(),
-            $this->getSubscriberName()
+            $this->_receiver_email,
+            $this->_receiver_name
         )->getTransport();
 
         $transport->sendMessage();
 
         return true;
     }
-
-    /**
-     * Send admin notification email
-     * 
-     * @return bool
-     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
-     * @SuppressWarnings(PHPMD.NPathComplexity)
-     * @SuppressWarnings(PHPMD.ExcessiveMethodLength)
-     */
-    public function sendAdmin()
-    {
-        if ($this->_website === null) {
-            return false;
-        }
-
-        if (!$this->_website->getDefaultGroup() || !$this->_website->getDefaultGroup()->getDefaultStore()) {
-            return false;
-        }
-        $store = $this->_website->getDefaultStore();
-        $storeId = $store->getId();
-        $templateId = $this->_scopeConfig->getValue(
-            self::XML_PATH_EMAIL_ADMIN_TEMPLATE,
-            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
-            $storeId
-        );
-        $adminEmail = $this->_scopeConfig->getValue(
-            self::XML_PATH_ADMIN_EMAIL,
-            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
-            $storeId
-        );
-
-        if (!$templateId){
-            return false;
-        }
-
-        if (!$this->_scopeConfig->getValue(
-            self::XML_PATH_ENABLE_SEND_ADMIN_NOTIFY,
-            \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
-            $storeId
-        )){
-            return false;
-        }
-
-        if (!$adminEmail) {
-            return false;
-        }
-
-        $this->_appEmulation->startEnvironmentEmulation($storeId);
-        $this->_getStockBlock()->setStore($store)->reset();
-
-        $this->_appEmulation->stopEnvironmentEmulation();
-
-        $_product = $this->getFirstProduct();
-        $product_name = $_product ? $_product->getName(): "";
-        $product_sku = $_product ? $_product->getSku(): "";
-
-        $transport = $this->_transportBuilder->setTemplateIdentifier(
-            $templateId
-        )->setTemplateOptions(
-            ['area' => \Magento\Framework\App\Area::AREA_FRONTEND, 'store' => $storeId]
-        )->setTemplateVars(
-            [
-                'subscriberName' => $this->getSubscriberName(),
-                'subscriberEmail' => $this->getSubscriberEmail(),
-                'message' => $this->getMessage(),
-                'url' => $this->getProductUrl(),
-                'productName' => $product_name,
-                'productSku' => $product_sku
-            ]
-        )->setFrom(
-            $this->_scopeConfig->getValue(
-                self::XML_PATH_EMAIL_IDENTITY,
-                \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
-                $storeId
-            )
-        )->addTo(
-            $adminEmail,
-            "Owner"
-        )->getTransport();
-
-        $transport->sendMessage();
-
-        return true;
-    }
-    
 }
