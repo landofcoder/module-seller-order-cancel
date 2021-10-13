@@ -28,8 +28,9 @@ class Email extends \Magento\Framework\Model\AbstractModel
     const XML_PATH_ENABLE_SEND_ADMIN_NOTIFY = 'lofmp_cancelorder/general/notify_admin';
     const XML_PATH_ENABLE_SEND_CUSTOMER_NOTIFY = 'lofmp_cancelorder/general/notify_customer';
     const XML_PATH_ENABLE_SEND_SELLER_NOTIFY = 'lofmp_cancelorder/general/notify_seller';
-    const XML_PATH_EMAIL_IDENTITY = 'lofmp_cancelorder/general/sender_name';
+    const XML_PATH_EMAIL_IDENTITY = 'lofmp_cancelorder/general/email_identity';
     const XML_PATH_ADMIN_EMAIL = 'lofmp_cancelorder/general/admin_email';
+    const XML_PATH_ADMIN_NAME = 'lofmp_cancelorder/general/admin_name';
 
     /**
      * Website Model
@@ -85,6 +86,11 @@ class Email extends \Magento\Framework\Model\AbstractModel
     protected $_customerHelper;
 
     /**
+     * @var \Lof\MarketPlace\Model\SellerFactory
+     */
+    protected $sellerFactory;
+
+    /**
      * @var mixed|array
      */
     protected $_data = [];
@@ -100,6 +106,11 @@ class Email extends \Magento\Framework\Model\AbstractModel
     protected $_receiver_email = null;
 
     /**
+     * @var string|null
+     */
+    protected $_cancel_by = null;
+
+    /**
      * Email constructor.
      * @param \Magento\Framework\Model\Context $context
      * @param \Magento\Framework\Registry $registry
@@ -111,6 +122,7 @@ class Email extends \Magento\Framework\Model\AbstractModel
      * @param \Magento\Store\Model\App\Emulation $appEmulation
      * @param \Magento\Framework\Mail\Template\TransportBuilder $transportBuilder
      * @param \Magento\Framework\App\State $appState
+     * @param \Lof\MarketPlace\Model\SellerFactory $sellerFactory
      * @param \Magento\Framework\Model\ResourceModel\AbstractResource|null $resource
      * @param \Magento\Framework\Data\Collection\AbstractDb|null $resourceCollection
      * @param array $data
@@ -126,6 +138,7 @@ class Email extends \Magento\Framework\Model\AbstractModel
         \Magento\Store\Model\App\Emulation $appEmulation,
         \Magento\Framework\Mail\Template\TransportBuilder $transportBuilder,
         \Magento\Framework\App\State $appState,
+        \Lof\MarketPlace\Model\SellerFactory $sellerFactory,
         \Magento\Framework\Model\ResourceModel\AbstractResource $resource = null,
         \Magento\Framework\Data\Collection\AbstractDb $resourceCollection = null,
         array $data = []
@@ -138,7 +151,17 @@ class Email extends \Magento\Framework\Model\AbstractModel
         $this->_transportBuilder        = $transportBuilder;
         $this->_customerHelper          = $customerHelper;
         $this->appState = $appState;
+        $this->sellerFactory = $sellerFactory;
         parent::__construct($context, $registry, $resource, $resourceCollection, $data);
+    }
+
+    /**
+     * Get seller info
+     * @return mixed|Object|null|bool
+     */
+    protected function getSeller($seller_id) 
+    {
+        return $this->sellerFactory->create()->load((int)$seller_id);
     }
 
     /**
@@ -198,6 +221,18 @@ class Email extends \Magento\Framework\Model\AbstractModel
     public function setEmailData($data)
     {
         $this->_data = $data;
+        return $this;
+    }
+
+    /**
+     * Set cancel_by
+     *
+     * @param string $cancel_by
+     * @return $this
+     */
+    public function setCancelBy($cancel_by)
+    {
+        $this->_cancel_by = $cancel_by;
         return $this;
     }
 
@@ -273,7 +308,13 @@ class Email extends \Magento\Framework\Model\AbstractModel
                 \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
                 $storeId
             );
+            $admin_name = $this->_scopeConfig->getValue(
+                self::XML_PATH_ADMIN_NAME,
+                \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+                $storeId
+            );
             $this->setReciverEmail($admin_email);
+            $this->setReciverName($admin_name);
         }
 
         if (!$this->_data || !$this->_receiver_email) {
@@ -285,12 +326,25 @@ class Email extends \Magento\Framework\Model\AbstractModel
             \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
             $storeId
         );
+        $data = $this->_data;
+
+        $data["reciever_name"] = $this->_receiver_name;
+        $data["reciever_email"] = $this->_receiver_email;
+
+        $seller_id = isset($data["seller_id"]) ? (int)$data["seller_id"] : 0;
+        if ($seller_id) {
+            $seller = $this->getSeller($seller_id);
+            $data["cancel_by_name"] = $seller ? __("seller: %1", $seller->getName()) : __("Seller");
+        } else {
+            $data["cancel_by_name"] = $this->_cancel_by ? $this->_cancel_by : __("Admin");
+        }
+
         $transport = $this->_transportBuilder->setTemplateIdentifier(
             $templateId
         )->setTemplateOptions(
             ['area' => \Magento\Framework\App\Area::AREA_FRONTEND, 'store' => $storeId]
         )->setTemplateVars(
-            $this->_data
+            $data
         )->setFrom(
             $this->_scopeConfig->getValue(
                 self::XML_PATH_EMAIL_IDENTITY,

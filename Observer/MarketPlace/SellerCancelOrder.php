@@ -18,15 +18,15 @@
  * @copyright  Copyright (c) 2021 Landofcoder (http://www.landofcoder.com/)
  * @license    http://www.landofcoder.com/LICENSE-1.0.html
  */
-namespace Lofmp\CancelOrder\Observer;
+namespace Lofmp\CancelOrder\Observer\MarketPlace;
 
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Stdlib\DateTime\DateTime;
 use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 
-class Productsaveafter implements ObserverInterface
+class SellerCancelOrder implements ObserverInterface
 {
-    const XML_PATH_ENABLE = 'lofmp_cancelorder/general/enable';
+    const XML_PATH_ENABLED = 'lofmp_cancelorder/general/enable';
     /**
      * @var \Magento\Framework\App\Config\ScopeConfigInterface
      */
@@ -67,9 +67,10 @@ class Productsaveafter implements ObserverInterface
     /**
      * Website collection array
      *
-     * @var array
+     * @var array|null
      */
-    protected $_websites;
+    protected $_website = null;
+    
 
     protected $stockItem;
 
@@ -97,14 +98,12 @@ class Productsaveafter implements ObserverInterface
         \Magento\Framework\Stdlib\DateTime\DateTimeFactory $dateFactory,
         \Magento\Customer\Api\CustomerRepositoryInterface $customerRepository,
         \Lofmp\CancelOrder\Model\Email $email,
-        \Magento\Newsletter\Model\ResourceModel\Subscriber\CollectionFactory $subscriberCollectionFactory,
         \Magento\InventoryCatalogAdminUi\Model\GetSourceItemsDataBySku $sourceDataBySku,
         TimezoneInterface $timezoneInterface,
         DateTime $dateTime
     )
     {
         $this->_email = $email;
-        $this->_collectionSubscriber = $collectionSubscriber;
         $this->_catalogData     = $catalogData;
         $this->stockItem = $stockItem;
         $this->_dateFactory     = $dateFactory;
@@ -138,19 +137,55 @@ class Productsaveafter implements ObserverInterface
         $seller_id = $observer->getSellerId();
         $order_id = $observer->getOrderId();
         $order = $observer->getOrder();
-        $email = $this->_email;
-        //process send email
+        if ($order) {
+            if (!$this->_scopeConfig->getValue(
+                self::XML_PATH_ENABLED,
+                \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+                $order->getStoreId()
+            )){
+                return false;
+            }
+
+            $customerEmail = $order->getCustomerEmail();
+            $customerName = $order->getCustomerName();
+            $email = $this->_email;
+            $emailData = [
+                "seller_id" => $seller_id,
+                "order_id" => $order_id,
+                "order" => $order
+            ];
+            try {
+                $website = $this->_getWebsiteByStore($order->getStoreId());
+                $email->setWebsite($website);
+                //process send email
+                //1. Notify to admin user
+                $email->setEmailData($emailData)
+                    ->send(true);
+                //2. Notify to customer
+                $email->clean()
+                    ->setEmailData($emailData)
+                    ->setReciverEmail($customerEmail)
+                    ->setReciverName($customerName)
+                    ->send();
+                
+                return true;
+            } catch (\Exception $e) {
+                echo $e->getMessage();
+                return false;
+            }
+        }
     }
 
-    protected function _getWebsites()
+    protected function _getWebsiteByStore($storeId = 0)
     {
-        if ($this->_websites === null) {
+        if ($this->_website === null) {
             try {
-                $this->_websites = $this->_storeManager->getWebsites();
+                $websiteId = (int)$this->_storeManager->getStore($storeId)->getWebsiteId();
+                $this->_website = $this->_storeManager->getWebsite($websiteId);
             } catch (\Exception $e) {
                 $this->_errors[] = $e->getMessage();
             }
         }
-        return $this->_websites;
+        return $this->_website;
     }
 }

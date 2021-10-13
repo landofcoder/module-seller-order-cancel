@@ -48,17 +48,17 @@
 					<source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <comment>Send notification email to admin when seller cancel order.</comment>
 				</field>
-                <field id="admin_email" translate="label comment" type="textarea" sortOrder="35" showInDefault="1" showInWebsite="1" showInStore="1">
+                <field id="admin_email" translate="label comment" type="text" sortOrder="35" showInDefault="1" showInWebsite="1" showInStore="1">
 					<label>Admin Email Address</label>
 					<comment>Input admin email address will been received notification emails.</comment>
 				</field>
-                <field id="sender_name" translate="label" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Name Sender</label>
+                <field id="admin_name" translate="label" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Admin Name</label>
                     <source_model>Magento\Config\Model\Config\Source\Email\Identity</source_model>
                     <comment>Name of sender who send email.</comment>
                 </field>
-                <field id="sender_email" translate="label" type="text" sortOrder="45" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Sender Email Address </label>
+                <field id="email_identity" translate="label" type="select" sortOrder="45" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Alert Email Sender</label>
                     <source_model>Magento\Config\Model\Config\Source\Email\Identity</source_model>
                     <comment>Email of Sender.</comment>
                 </field>
