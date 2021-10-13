@@ -27,6 +27,8 @@ use Magento\Framework\Stdlib\DateTime\TimezoneInterface;
 class SellerCancelOrder implements ObserverInterface
 {
     const XML_PATH_ENABLED = 'lofmp_cancelorder/general/enable';
+    const XML_PATH_ENABLED_SEND_TO_ADMIN = 'lofmp_cancelorder/general/notify_admin';
+    const XML_PATH_ENABLED_SEND_TO_CUSTOMER = 'lofmp_cancelorder/general/notify_customer';
     /**
      * @var \Magento\Framework\App\Config\ScopeConfigInterface
      */
@@ -159,15 +161,26 @@ class SellerCancelOrder implements ObserverInterface
                 $email->setWebsite($website);
                 //process send email
                 //1. Notify to admin user
-                $email->setEmailData($emailData)
-                    ->send(true);
+                if ($this->_scopeConfig->getValue(
+                    self::XML_PATH_ENABLED_SEND_TO_ADMIN,
+                    \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+                    $order->getStoreId()
+                )) {
+                    $email->setEmailData($emailData)
+                        ->send(true);
+                }
                 //2. Notify to customer
-                $email->clean()
-                    ->setEmailData($emailData)
-                    ->setReciverEmail($customerEmail)
-                    ->setReciverName($customerName)
-                    ->send();
-                
+                if ($this->_scopeConfig->getValue(
+                    self::XML_PATH_ENABLED_SEND_TO_CUSTOMER,
+                    \Magento\Store\Model\ScopeInterface::SCOPE_STORE,
+                    $order->getStoreId()
+                )) {
+                    $email->clean()
+                        ->setEmailData($emailData)
+                        ->setReciverEmail($customerEmail)
+                        ->setReciverName($customerName)
+                        ->send();
+                }
                 return true;
             } catch (\Exception $e) {
                 echo $e->getMessage();
