@@ -1,18 +1,18 @@
 <?php
 /**
  * Landofcoder
- * 
+ *
  * NOTICE OF LICENSE
- * 
+ *
  * This source file is subject to the Landofcoder.com license that is
  * available through the world-wide-web at this URL:
  * http://landofcoder.com/license
- * 
+ *
  * DISCLAIMER
- * 
+ *
  * Do not edit or add to this file if you wish to upgrade this extension to newer
  * version in the future.
- * 
+ *
  * @category   Landofcoder
  * @package    Lofmp_CancelOrder
  * @copyright  Copyright (c) 2021 Landofcoder (http://www.landofcoder.com/)
@@ -72,7 +72,7 @@ class SellerCancelOrder implements ObserverInterface
      * @var array|null
      */
     protected $_website = null;
-    
+
 
     protected $stockItem;
 
@@ -122,7 +122,7 @@ class SellerCancelOrder implements ObserverInterface
         if($dateTime === "today" || !$dateTime){
             $dateTime = $this->_dateTime->gmtDate();
         }
-        
+
         $today = $this->_timezoneInterface
             ->date(
                 new \DateTime($dateTime)
@@ -139,6 +139,16 @@ class SellerCancelOrder implements ObserverInterface
         $seller_id = $observer->getSellerId();
         $order_id = $observer->getOrderId();
         $order = $observer->getOrder();
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $_orderCollectionFactory = $objectManager->create('\Magento\Sales\Model\ResourceModel\Order\CollectionFactory');
+        $collection = $_orderCollectionFactory->create()
+            ->addFieldToFilter('entity_id', $order_id);
+        foreach ($collection as $orders)
+        {
+                    $order->setState("canceled");
+                    $order->setStatus("canceled");
+                    $order->save();
+        }
         if ($order) {
             if (!$this->_scopeConfig->getValue(
                 self::XML_PATH_ENABLED,
